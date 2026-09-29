@@ -60,16 +60,19 @@ Options that need the local server are shown greyed out when it is not running.
 
 ### 1.3 Choosing a carrier
 
-- **Fragment ID** (the default) can carry up to 1,048,576 characters of address, the maximum Firefox
-  accepts. The transmission never leaves the browser: web servers do not receive the part of an address
-  after `#`. Use it for long transmissions.
+- **Fragment ID** (the default) can carry an address as long as the browser accepts: 1,048,572
+  characters in Firefox by default, which is about 11,000 bytes of text. The transmission never leaves
+  the browser: web servers do not receive the part of an address after `#`. Use it for long
+  transmissions.
 - **Query string** is sent to the server with the request. GitHub Pages refuses addresses longer than
   about 8,190 characters, so on the published site a query transmission is limited to 8,000 characters
   of address, which is 85 to 105 bytes of text, depending on the grammar.
 
-The limit is chosen automatically. To set another, open **URL budget** and enter a maximum address
-length; leave it empty for the automatic value. Section 7 sets out the query string's limitations in
-full.
+The limit is chosen automatically, from the carrier and from the limit the page measures in your
+browser. To set another, open **URL budget** and enter a maximum address length; leave it empty for the
+automatic value. A budget above what the browser accepts is refused with a message rather than
+producing an address that cannot be opened. Section 7 sets out the limits in full, and section 7.2 how
+to raise Firefox's.
 
 ---
 
@@ -243,18 +246,41 @@ and it differs between the two carriers.
 |---|---|---|---|
 | GitHub Pages request limit | **query string** on the published site | a request target (path and query) of about 8,190 characters | a longer address is answered with GitHub's **414 URI Too Long** page and never reaches Gigaspeak |
 | Gigaspeak's hosted query budget | **query string** on the published site | 8,000 characters of address | keeps every generated address below GitHub's limit: 85 to 105 bytes of text |
-| Firefox's maximum address length | **both carriers**, everywhere | 1,048,576 characters (`network.standard-url.max-length`) | a longer address is not opened at all |
-| Gigaspeak's fragment and local budget | **fragment**, and **query string** on a local server | 1,048,576 characters | about 11,000 bytes of text in SPAN Transparent |
+| Firefox's maximum address length | **both carriers**, everywhere | the setting `network.standard-url.max-length` less 4: **1,048,572** characters by default | a longer address is refused outright (section 7.2) |
+| Gigaspeak's fragment and local budget | **fragment**, and **query string** on a local server | the limit measured in the viewer's browser: 1,048,572 in a default Firefox | about 11,000 bytes of text in SPAN Transparent |
 
 The GitHub figure was measured against nth-member.github.io on 2026-09-29: request targets up to
 8,186 characters were served, and from 8,198 characters GitHub answered 414. GitHub does not publish
 this limit, and it may change; the 8,000-character budget leaves a small margin.
 
-The Firefox figure is Firefox's default setting. Other browsers have their own maximum lengths; if a
+The Firefox figure was measured on Firefox 155. Its setting is 1,048,576, but its address parser
+accepts at most the setting less 4; this held with the setting at 1, 4 and 8 MiB. Other browsers have
+their own maximum lengths, which Gigaspeak does not measure; in them it uses the Firefox default. If a
 long fragment address does not open in another browser, lower the **URL budget** (section 1.3) and
 constitute again.
 
-### 7.2 Further differences
+### 7.2 What happens at the limit, and raising it
+
+An address longer than the browser accepts is **not opened at all**. Firefox does not shorten it and
+shows no error page: a link to it does nothing, and a page that tries to open it receives an error
+instead. Gigaspeak therefore never builds an address longer than the measured limit, and the Speak and
+Build URL tabs state it in red when a typed budget or message would exceed it.
+
+Firefox's limit can be raised, and Gigaspeak then uses it:
+
+1. Open `about:config` in Firefox and accept the warning.
+2. Search for `network.standard-url.max-length`.
+3. Edit the value (default `1048576`), for example to `4194304`, and confirm.
+4. Reload Gigaspeak. **URL budget** now shows the new automatic limit (`4,194,300` in this example).
+
+With the setting at 4,194,304, a fragment transmission of 4,194,243 characters opened and was validated
+in full: 45,001 bytes of text in SPAN Transparent, and 55,922 bytes in Span Zero, against about 11,000
+and 14,000 at the default. The raised limit applies only in that Firefox: **a link longer than 1,048,572
+characters opens only in a Firefox whose setting has been raised at least as far**, so such links are
+for your own use or for recipients who have made the same change. The query carrier on the published
+site stays at 8,000 characters whatever the setting, because that limit is GitHub's.
+
+### 7.3 Further differences
 
 - **What the server receives.** A query string is part of the request, so GitHub's servers receive the
   whole transmission and may record it in their logs. A fragment (everything after `#`) is never sent to
@@ -266,11 +292,12 @@ constitute again.
 - **Sharing.** Messaging applications, e-mail programs and link shorteners may cut or refuse very long
   addresses. A query-string address of at most 8,000 characters is the safer form to send; a
   1-million-character fragment address is best opened on the same computer or copied as a file.
+- **Local server.** The local server (section 6) accepts request targets of up to 32 MiB, so a query
+  address there is limited by the browser alone.
 - **Other renderers.** An address built for another server (**Renderer** and **Port** on the Build URL
-  tab) is subject to that server's limit, not GitHub's. The local server (section 6) accepts query
-  addresses up to Firefox's limit.
+  tab) is subject to that server's limit, not GitHub's.
 
-### 7.3 Which to use
+### 7.4 Which to use
 
 | purpose | carrier |
 |---|---|
@@ -291,5 +318,6 @@ constitute again.
 | **Expected exactly one html field** | The address has no transmission, or two. |
 | A GitHub page reading **414 URI Too Long** | A query-string address is longer than GitHub Pages accepts (section 7.1). Use the Fragment carrier, or shorten the message. |
 | **Non-ASCII character at …** | The text contains a character outside ASCII. Replace it; in Speak, the engine's output is converted automatically (non-ASCII becomes `?`). |
+| **The address is … characters; this browser accepts at most …** | The URL budget or the message exceeds the browser's limit (section 7.2). Lower the budget, shorten the message, or raise Firefox's setting. |
 | The transmission looks nearly empty | A zero grammar, or low byte values drawn with low opacity (section 2). Tick **show byte labels**. |
 | **Input is … bytes; the limit is 2,000,000** | The Communicator's limit. Split the text. |

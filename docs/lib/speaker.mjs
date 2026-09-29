@@ -14,8 +14,11 @@
 
 import { grammar } from "./grammar.mjs";
 
-// Firefox's default network.standard-url.max-length.
-export const FIREFOX_MAX_URL = 1_048_576;
+// The longest address Firefox accepts by default. Its setting
+// network.standard-url.max-length is 1,048,576, and its URL parser accepts at
+// most that value less 4 (measured on Firefox 155, at 1, 4 and 8 MiB). A longer
+// address is refused outright: window.open and location assignment throw.
+export const FIREFOX_MAX_URL = 1_048_572;
 // GitHub Pages answers 414 above ~8,190 characters of request target.
 export const HOSTED_QUERY_MAX_URL = 8_000;
 
@@ -92,12 +95,28 @@ export async function sha256(text) {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// The longest address this browser's URL parser accepts, found by bisection, or
+// null when it accepts everything up to `upper` (browsers other than Firefox,
+// and Node). In Firefox it reflects a raised network.standard-url.max-length.
+export function detectUrlLimit({ parse = u => new URL(u), upper = 16_777_216 } = {}) {
+  const prefix = "https://a.example/#";
+  const ok = n => { try { parse(prefix + "x".repeat(n - prefix.length)); return true; } catch { return false; } };
+  if (ok(FIREFOX_MAX_URL) && !ok(FIREFOX_MAX_URL + 1)) return FIREFOX_MAX_URL;
+  if (ok(upper)) return null;
+  let lo = 1024, hi = upper;
+  if (!ok(lo)) return null;
+  while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (ok(mid)) lo = mid; else hi = mid; }
+  return lo;
+}
+
 const isLoopbackHost = host => /^(localhost|127(?:\.\d{1,3}){3}|\[::1\])$/.test(host);
 
 // The URL budget a constitution may use, by carrier and where it will be served.
-export function defaultBudget({ carrier, authority, renderBase }) {
-  if (carrier === "fragment" || authority === "literal") return FIREFOX_MAX_URL;
-  return isLoopbackHost(new URL(renderBase).hostname) ? FIREFOX_MAX_URL : HOSTED_QUERY_MAX_URL;
+// browserLimit: this browser's own limit (detectUrlLimit), when one was found.
+export function defaultBudget({ carrier, authority, renderBase, browserLimit = null }) {
+  const browser = browserLimit ?? FIREFOX_MAX_URL;
+  if (carrier === "fragment" || authority === "literal") return browser;
+  return isLoopbackHost(new URL(renderBase).hostname) ? browser : Math.min(browser, HOSTED_QUERY_MAX_URL);
 }
 
 // renderBase: the URL of render.html for the loopback authority, e.g.
@@ -108,6 +127,7 @@ export async function buildConstitution(output, {
   authority = "loopback",
   renderBase,
   maxUrlLength,
+  browserLimit = null,
   random = randomBelow,
   uuid = randomUUID
 } = {}) {
@@ -116,7 +136,7 @@ export async function buildConstitution(output, {
   if (authority !== "loopback" && authority !== "literal") throw new RangeError(`Unknown authority: ${authority}`);
   const base = new URL(renderBase);
   if (base.protocol !== "http:" && base.protocol !== "https:") throw new TypeError("renderBase must use HTTP or HTTPS");
-  const budget = maxUrlLength ?? defaultBudget({ carrier, authority, renderBase });
+  const budget = maxUrlLength ?? defaultBudget({ carrier, authority, renderBase, browserLimit });
 
   const identity = constituteIdentity({ random });
   const runId = uuid();

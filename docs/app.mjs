@@ -1,5 +1,5 @@
 import { GRAMMARS, DEFAULT_GRAMMAR, grammar, labelForByte, hex2 } from "./lib/grammar.mjs";
-import { buildConstitution, defaultBudget, readRenderUrl } from "./lib/speaker.mjs";
+import { buildConstitution, defaultBudget, detectUrlLimit, readRenderUrl, FIREFOX_MAX_URL } from "./lib/speaker.mjs";
 import { buildMessageUrl } from "./lib/url-builder.mjs";
 import { toBytes, hexOf, prepare, apply, htmFilename, escapement, transformTitle, MAX_INPUT } from "./lib/communicator.mjs";
 
@@ -45,15 +45,27 @@ fetch("api/status", { cache: "no-store" }).then(r => (r.ok ? r.json() : null)).t
   remember("sAuthority"); remember("sSource"); syncSpeak();
 }).catch(() => {});
 
+// ---------- this browser's address limit ----------
+// Firefox refuses addresses longer than network.standard-url.max-length less 4;
+// a raised setting is found here and used. Elsewhere the Firefox default applies.
+const browserLimit = detectUrlLimit();
+const limitNote = browserLimit && browserLimit > FIREFOX_MAX_URL
+  ? `This Firefox accepts addresses of up to ${fmt(browserLimit)} characters (network.standard-url.max-length raised). A link longer than ${fmt(FIREFOX_MAX_URL)} opens only in a Firefox whose setting is raised as far.`
+  : `Firefox accepts addresses of at most ${fmt(FIREFOX_MAX_URL)} characters by default (network.standard-url.max-length = 1,048,576, less 4). Raising that setting in about:config raises the limit; this page detects it on loading.`;
+function tooLong(length) {
+  const limit = browserLimit ?? FIREFOX_MAX_URL;
+  return length > limit ? `The address is ${fmt(length)} characters; this browser accepts at most ${fmt(limit)}.` : "";
+}
+
 // ---------- speak ----------
 ["sGrammar", "sCarrier", "sAuthority", "sSource"].forEach(remember);
 function syncSpeak() {
   $("sTextWrap").hidden = $("sSource").value !== "text";
-  const auto = defaultBudget({ carrier: $("sCarrier").value, authority: $("sAuthority").value, renderBase: RENDER });
+  const auto = defaultBudget({ carrier: $("sCarrier").value, authority: $("sAuthority").value, renderBase: RENDER, browserLimit });
   $("sBudget").placeholder = `automatic: ${fmt(auto)}`;
-  $("sBudgetNote").textContent = auto < 1e6
-    ? "A query-string URL is sent to the server, and GitHub Pages refuses request targets longer than about 8,190 characters. Use the fragment carrier for up to 1,048,576."
-    : "1,048,576 is Firefox's default maximum URL length (network.standard-url.max-length).";
+  $("sBudgetNote").textContent = auto <= 8000
+    ? "A query-string URL is sent to the server, and GitHub Pages refuses request targets longer than about 8,190 characters. Use the fragment carrier for long transmissions."
+    : limitNote;
 }
 ["sCarrier", "sAuthority", "sSource"].forEach(id => $(id).addEventListener("change", syncSpeak));
 syncSpeak();
@@ -87,7 +99,8 @@ $("speak").addEventListener("click", async () => {
       carrier: $("sCarrier").value,
       authority: $("sAuthority").value,
       renderBase,
-      maxUrlLength: budgetText ? Number.parseInt(budgetText, 10) : undefined
+      maxUrlLength: budgetText ? Number.parseInt(budgetText, 10) : undefined,
+      browserLimit
     });
     lastUrl = c.renderUrl;
     $("fIdentity").textContent = `${c.identity.address}:${c.identity.port}`;
@@ -98,13 +111,21 @@ $("speak").addEventListener("click", async () => {
     $("fRun").textContent = c.runId;
     $("sFacts").hidden = false; $("sLinks").hidden = false;
     $("sOpen").href = c.renderUrl;
-    if (c.authority === "literal") {
+    const refusal = tooLong(c.urlLength);
+    if (refusal) {
+      status("sStatus", `${refusal} Lower the URL budget, or raise network.standard-url.max-length in about:config and reload.`, "error");
+    } else if (c.authority === "literal") {
       const r = await (await fetch("api/literal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: c.renderUrl, port: c.identity.port }) })).json();
       if (!r.ok) throw new Error(r.error);
       status("sStatus", `Done in ${fmt(Math.round(performance.now() - t0))} ms. A proxied Firefox opened ${c.identity.address}:${c.identity.port}.`, "good");
     } else {
       status("sStatus", `Done in ${fmt(Math.round(performance.now() - t0))} ms. Opening the transmission.`, "good");
-      if (!window.open(c.renderUrl, "_blank", "noopener")) status("sStatus", "Done. The browser blocked the new tab; use the link below.", "good");
+      let tab;
+      // Without "noopener", which makes window.open return null even on success;
+      // the opener link is cut by hand instead.
+      try { tab = window.open(c.renderUrl, "_blank"); if (tab) tab.opener = null; }
+      catch { throw new Error(`The browser refused the ${fmt(c.urlLength)}-character address as too long. Lower the URL budget.`); }
+      if (!tab) status("sStatus", "Done. The browser blocked the new tab; use the link below.", "good");
     }
   } catch (error) {
     status("sStatus", error.message, "error");
@@ -133,7 +154,9 @@ function build() {
     $("bPreview").innerHTML = grammar($("bGrammar").value).encodeBytes(r.bytes.slice(0, 4000));
     $("bPreview").dataset.form = grammar($("bGrammar").value).form;
     const hosted = !/^(localhost|127\.|\[::1\])/.test(new URL(r.href).hostname);
-    status("bStatus", `${fmt(r.bytes.length)} bytes${hosted && $("bCarrier").value === "query" && r.length > 8000 ? " · longer than GitHub Pages accepts in a query; use the fragment carrier" : ""}`, hosted && $("bCarrier").value === "query" && r.length > 8000 ? "error" : "");
+    const pagesLimit = hosted && $("bCarrier").value === "query" && r.length > 8000;
+    const problem = tooLong(r.length) || (pagesLimit ? "Longer than GitHub Pages accepts in a query; use the fragment carrier." : "");
+    status("bStatus", `${fmt(r.bytes.length)} bytes${problem ? ` · ${problem}` : ""}`, problem ? "error" : "");
   } catch (error) {
     $("bUrl").value = ""; $("bLen").textContent = "0"; $("bPreview").textContent = "";
     status("bStatus", error.message, "error");

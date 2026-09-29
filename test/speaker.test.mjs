@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GRAMMARS, grammar } from "../docs/lib/grammar.mjs";
-import { buildConstitution, constituteIdentity, defaultBudget, normalizeAscii, randomBelow, readRenderUrl, selectMaximumWindow, FIREFOX_MAX_URL, HOSTED_QUERY_MAX_URL } from "../docs/lib/speaker.mjs";
+import { buildConstitution, constituteIdentity, defaultBudget, detectUrlLimit, normalizeAscii, randomBelow, readRenderUrl, selectMaximumWindow, FIREFOX_MAX_URL, HOSTED_QUERY_MAX_URL } from "../docs/lib/speaker.mjs";
 
 const HOSTED = "https://nth-member.github.io/gigaspeak/render.html";
 const LOCAL = "http://127.0.0.1:8814/render.html";
@@ -33,6 +33,25 @@ test("the window is the longest that fits, and ties are sampled", () => {
   assert.equal(r.start, 0);
   assert.equal(selectMaximumWindow("aaaaa", 3 * w, g, { random: () => 0 }).start, 2);
   assert.equal(selectMaximumWindow("", 10, g).length, 0);
+});
+
+test("Firefox's default limit is its setting less 4", () => {
+  assert.equal(FIREFOX_MAX_URL, 1_048_576 - 4);
+});
+
+test("detectUrlLimit finds a parser's limit, or reports none", () => {
+  const firefox = max => u => { if (u.length > max - 4) throw new TypeError("too long"); return u; };
+  assert.equal(detectUrlLimit({ parse: firefox(1_048_576) }), 1_048_572);
+  assert.equal(detectUrlLimit({ parse: firefox(4_194_304) }), 4_194_300);
+  assert.equal(detectUrlLimit({ parse: firefox(262_144) }), 262_140);
+  assert.equal(detectUrlLimit({ parse: u => u }), null);
+  assert.equal(detectUrlLimit(), null);   // Node's URL parser has no length limit
+});
+
+test("a raised browser limit raises the fragment budget but not the hosted query budget", () => {
+  assert.equal(defaultBudget({ carrier: "fragment", authority: "loopback", renderBase: HOSTED, browserLimit: 4_194_300 }), 4_194_300);
+  assert.equal(defaultBudget({ carrier: "query", authority: "loopback", renderBase: HOSTED, browserLimit: 4_194_300 }), HOSTED_QUERY_MAX_URL);
+  assert.equal(defaultBudget({ carrier: "query", authority: "loopback", renderBase: LOCAL, browserLimit: 4_194_300 }), 4_194_300);
 });
 
 test("budgets: fragment and loopback get Firefox's limit, a hosted query gets 8,000", () => {
@@ -69,6 +88,8 @@ test("a hosted query URL stays under GitHub Pages' limit; a fragment URL uses th
   assert.ok(q.urlLength <= 8000 && q.urlLength > 7000);
   const f = await buildConstitution(big, { grammarId: "span-zero", carrier: "fragment", renderBase: HOSTED });
   assert.ok(f.urlLength <= FIREFOX_MAX_URL && f.urlLength > FIREFOX_MAX_URL - 200);
+  const r = await buildConstitution("x".repeat(600_000), { grammarId: "span-transparent", carrier: "fragment", renderBase: HOSTED, browserLimit: 4_194_300 });
+  assert.ok(r.urlLength <= 4_194_300 && r.urlLength > 4_194_300 - 200);
 });
 
 test("readRenderUrl refuses zero or two documents", () => {

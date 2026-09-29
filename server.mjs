@@ -105,7 +105,7 @@ async function file(res, pathname) {
   }
 }
 
-const server = createServer({ maxHeaderSize: 2 * 1024 * 1024 }, async (req, res) => {
+const server = createServer({ maxHeaderSize: 32 * 1024 * 1024 }, async (req, res) => {
   try {
     // A proxied request arrives in absolute form (http://A.B.C.D:PORT/path); it is
     // served from docs/ like any other.

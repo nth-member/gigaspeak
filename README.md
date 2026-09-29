@@ -37,8 +37,10 @@ now three choices on the Speak tab:
 
 - **Carrier.** *Query* (`render.html?g=…&html=…`) is sent to the server with the request; GitHub Pages
   refuses request targets longer than about 8,190 characters, so a hosted query URL is limited to 8,000.
-  *Fragment* (`render.html?g=…#html=…`) never leaves the browser and may use Firefox's full
-  1,048,576 characters (`network.standard-url.max-length`).
+  *Fragment* (`render.html?g=…#html=…`) never leaves the browser and may use the longest address the
+  browser accepts. Firefox accepts at most `network.standard-url.max-length` less 4 characters:
+  1,048,572 by default. The page measures the viewer's own limit on loading, so a raised setting is
+  used (4,194,300 characters, 45,001 bytes of text, was verified).
 - **Authority.** *Loopback*: the page's own address renders, and the random `A.B.C.D:PORT` is carried as
   identity. *Literal*: `http://A.B.C.D:PORT/render.html…` is itself the address; a Firefox profile
   proxied to the local server (below) routes the unassigned address back to it.
@@ -71,7 +73,7 @@ tests check this for every table and byte.
 ```bash
 cd docs && python3 -m http.server 8000     # the static site, as GitHub Pages serves it
 node server.mjs                            # http://127.0.0.1:8814/ with the two local additions
-npm test                                   # 55 tests; Node 20 or later
+npm test                                   # 58 tests; Node 20 or later
 node bin/gigaspeak.mjs                     # command line: encode, url, decode, inspect, htm
 ```
 
@@ -88,7 +90,8 @@ enables both options only when it finds the server.
 - the closed and opening-tag tokens equal the MDQNM calc28 and calc32 tables byte for byte, and the
   derived forms follow from them;
 - when the original editions are on the computer, every token equals the original codecs' in all 24;
-- every edition's URL fits its budget and reads back to the chosen portion;
+- every edition's URL fits its budget and reads back to the chosen portion, and the browser-limit
+  detection finds Firefox's limit (its setting less 4) and ignores parsers without one;
 - every Communicator transform equals `clojure.string/replace`, and, when present, the Communicator's
   own sample `.HTM` files are reproduced byte for byte;
 - the control-mnemonic rules (chainable, strict, greedy, `\` escape, line endings);
