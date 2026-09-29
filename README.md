@@ -3,6 +3,9 @@
 **ASCII carried in colour.** Each byte becomes one SPAN whose colours encode its seven bits.
 Served at https://nth-member.github.io/gigaspeak/. Everything runs in the page; `docs/` is the site.
 
+**[How to use Gigaspeak](how-to-use.md)**: each tab step by step, the grammars, URL length and the
+query string's limits, local use, and what to do when something goes wrong.
+
 Gigaspeak brings three earlier developments into one static application:
 
 | tab | what it does | formerly |
