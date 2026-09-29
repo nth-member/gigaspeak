@@ -1,0 +1,4 @@
+node_modules/
+*.HTM
+.DS_Store
+.paths.json

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gigaspeak</title>
+<meta name="description" content="ASCII carried in colour: the Random Gigamonkey Speaker in six SPAN grammars, a URL builder, and the MDQNM ASCII-HEX HTM Communicator, in the browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%232a78d6'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle' font-family='monospace' font-weight='700' fill='white'%3EG%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>Gigaspeak</h1>
+  <p class="sub">ASCII carried in colour. Each byte becomes one SPAN whose colours encode its seven bits. The speaker runs the MDQNM engine and transmits its output in a URL; the builder does the same for a message you write; the Communicator turns text into a <code>.HTM</code> file through any of 26 MDQNM transforms. Everything runs in this page.</p>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="speak" aria-selected="true">Speak</button>
+    <button role="tab" data-tab="build" aria-selected="false">Build URL</button>
+    <button role="tab" data-tab="communicate" aria-selected="false">Communicator</button>
+    <button role="tab" data-tab="about" aria-selected="false">Grammars</button>
+  </nav>
+</header>
+
+<!-- SPEAK -->
+<section class="panel" data-panel="speak">
+  <p class="lede">One press: run <code>mdqnm-timemachines-and-clocks</code>, draw a random four-octet speaker and port, choose at random one of the longest parts of the output that fits the URL, encode it, and open the transmission.</p>
+
+  <div class="grid2">
+    <label class="field"><span>Grammar</span><select id="sGrammar"></select></label>
+    <label class="field"><span>Carrier</span>
+      <select id="sCarrier">
+        <option value="fragment">Fragment ID (#html=) — never sent to a server</option>
+        <option value="query">Query string (?html=) — sent with the request</option>
+      </select></label>
+    <label class="field"><span>Authority</span>
+      <select id="sAuthority">
+        <option value="loopback">This page renders; A.B.C.D:PORT is identity</option>
+        <option value="literal" disabled>Literal A.B.C.D:PORT in the address bar (local server)</option>
+      </select></label>
+    <label class="field"><span>Source</span>
+      <select id="sSource">
+        <option value="engine">MDQNM engine, in this page</option>
+        <option value="jvm" disabled>MDQNM engine, JVM (local server)</option>
+        <option value="text">Text I supply</option>
+      </select></label>
+  </div>
+  <label class="field" id="sTextWrap" hidden><span>Source text</span><textarea id="sText" rows="6" spellcheck="false" placeholder="Any text; characters outside ASCII become ?"></textarea></label>
+  <details class="adv"><summary>URL budget</summary>
+    <label class="field"><span>Maximum URL length (characters)</span><input id="sBudget" inputmode="numeric" placeholder="automatic"></label>
+    <p class="note" id="sBudgetNote"></p>
+  </details>
+
+  <button class="go" id="speak">CONSTITUTE AND SPEAK</button>
+  <div class="status" id="sStatus" aria-live="polite"></div>
+
+  <div class="facts" id="sFacts" hidden>
+    <div><b>Speaker</b><span id="fIdentity"></span></div>
+    <div><b>Source</b><span id="fOutput"></span></div>
+    <div><b>Portion</b><span id="fPortion"></span></div>
+    <div><b>URL</b><span id="fUrl"></span></div>
+    <div><b>Engine</b><span id="fEngine"></span></div>
+    <div><b>Run</b><span id="fRun"></span></div>
+  </div>
+  <div class="row" id="sLinks" hidden>
+    <a id="sOpen" target="_blank" rel="noopener">Open the transmission ↗</a>
+    <button type="button" id="sCopy" class="ghost">Copy URL</button>
+  </div>
+</section>
+
+<!-- BUILD -->
+<section class="panel" data-panel="build" hidden>
+  <p class="lede">Write a message in ASCII. Uppercase control mnemonics such as <code>NUL</code>, <code>CR</code>, <code>ESC</code> and <code>DEL</code> become their bytes; <code>\NUL</code> keeps the letters.</p>
+  <label class="field"><span>Message</span><textarea id="bMessage" rows="6" spellcheck="false">STX Hello from Gigaspeak. ETX</textarea></label>
+  <div class="grid3">
+    <label class="field"><span>Grammar</span><select id="bGrammar"></select></label>
+    <label class="field"><span>Carrier</span><select id="bCarrier"><option value="query">Query (?html=)</option><option value="fragment">Fragment (#html=)</option></select></label>
+    <label class="field"><span>Tokens</span><select id="bMode"><option value="chainable">Chainable</option><option value="strict">Strict</option><option value="greedy">Greedy</option></select></label>
+    <label class="field"><span>Line breaks</span><select id="bEol"><option>CRLF</option><option>LF</option><option>CR</option></select></label>
+    <label class="field wide"><span>Renderer</span><input id="bTarget" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>Port</span><input id="bPort" inputmode="numeric" autocomplete="off" placeholder="—"></label>
+  </div>
+  <div class="status" id="bStatus" aria-live="polite"></div>
+  <div class="preview" id="bPreview" aria-label="Preview"></div>
+  <label class="field"><span>URL · <span id="bLen">0</span> characters</span><textarea id="bUrl" rows="4" readonly spellcheck="false"></textarea></label>
+  <div class="row"><a id="bOpen" target="_blank" rel="noopener">Open ↗</a><button type="button" id="bCopy" class="ghost">Copy URL</button></div>
+  <details class="adv"><summary>Decode a URL</summary>
+    <label class="field"><span>Paste a Gigaspeak URL</span><textarea id="dUrl" rows="3" spellcheck="false"></textarea></label>
+    <pre class="mono out" id="dOut"></pre>
+  </details>
+</section>
+
+<!-- COMMUNICATOR -->
+<section class="panel" data-panel="communicate" hidden>
+  <p class="lede">Case-sensitive ASCII text → continuous uppercase hex → one MDQNM <code>s/replace</code> transform → bytes → a <code>.HTM</code> file. The same control mnemonics apply.</p>
+  <label class="field"><span>Text · <span id="cCount">0</span> bytes of 2,000,000</span><textarea id="cText" rows="7" spellcheck="false">HELLO. WORLD!</textarea></label>
+  <div class="grid3">
+    <label class="field wide"><span>Transform</span><select id="cTransform"></select></label>
+    <label class="field"><span>Tokens</span><select id="cMode"><option value="chainable">Chainable</option><option value="strict">Strict</option><option value="greedy">Greedy</option></select></label>
+    <label class="field"><span>Line breaks</span><select id="cEol"><option>CRLF</option><option>LF</option><option>CR</option></select></label>
+    <label class="field"><span>File name</span><input id="cName" value="communicator" autocomplete="off" spellcheck="false"></label>
+    <label class="field"><span>Open file</span><input id="cFile" type="file" accept=".txt,text/plain"></label>
+  </div>
+  <div class="status" id="cStatus" aria-live="polite"></div>
+  <div class="row"><button type="button" class="go small" id="cDownload">Download .HTM</button><button type="button" class="ghost" id="cHexSave">Save hex .txt</button></div>
+  <div class="split">
+    <div><h3>ASCII hex</h3><pre class="mono out" id="cHex"></pre></div>
+    <div><h3>Output <span class="muted" id="cOutInfo"></span></h3><div class="preview" id="cPreview"></div><pre class="mono out" id="cOutHex"></pre></div>
+  </div>
+  <details class="adv"><summary>ASCII escapement</summary><div class="esc" id="cEsc"></div></details>
+</section>
+
+<!-- ABOUT -->
+<section class="panel" data-panel="about" hidden>
+  <p class="lede">Every grammar is lossless: foreground R, G, B carry bits 6, 5, 4 (<code>00</code>/<code>AA</code>); the background carries bit 3 as its base (<code>00</code>/<code>55</code>) and bits 2, 1, 0 as <code>+AA</code> on R, G, B. The RGBA grammars repeat the byte as the alpha pair of both colours.</p>
+  <div class="table-wrap"><table class="gtable" id="gTable"></table></div>
+  <h3>All 128 bytes</h3>
+  <p class="note">Grammar: <select id="aGrammar"></select></p>
+  <div class="chart" id="aChart"></div>
+  <h3>The 24 editions</h3>
+  <p class="note">The original Gigaspeak ran 24 servers on ports 8790–8813: six grammars × two carriers × two authorities. Here they are the three choices on the Speak tab. The literal authority puts the random <code>A.B.C.D:PORT</code> in the address bar and needs a browser proxied to a local server; run <code>node server.mjs</code> from the repository to enable it, and the JVM engine when one is running.</p>
+</section>
+
+<footer class="foot">Engine: the <a href="https://nth-member.github.io/alien-corridor/">Alien Corridor Support System</a>, run by SCI in this page. Part of <a href="https://nth-member.github.io/">nth-member</a>.</footer>
+</div>
+<script type="module" src="app.mjs"></script>
+</body>
+</html>

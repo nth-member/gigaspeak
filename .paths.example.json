@@ -1,0 +1,5 @@
+{
+  "editions": "/path/to/codex_outputs/gigaspeak",
+  "communicatorManifest": "/path/to/communicator/generated/transforms.json",
+  "communicatorSamples": "/path/to/communicator/samples/generated_htm"
+}

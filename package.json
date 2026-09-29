@@ -1,0 +1,13 @@
+{
+  "name": "gigaspeak",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ASCII carried in colour: the Random Gigamonkey Speaker, a SPAN URL builder and the MDQNM ASCII-HEX HTM Communicator, as one static site.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "transforms": "node tools/build-transforms.mjs"
+  }
+}
