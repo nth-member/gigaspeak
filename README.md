@@ -68,12 +68,27 @@ Every table is keyed by the two-digit hex of one byte, and its regex matches exa
 `clojure.string/replace` over the continuous hex stream equals replacing each byte by its value; the
 tests check this for every table and byte.
 
+## Teletype test streams
+
+The Communicator's **Test input** menu builds a 1 MiB capture of 1971-era Teletype Model 33 or Model 37
+ASR line traffic, to feed a byte-oriented parser under test. Every byte is `00`–`7F` (high bit `0`), and
+the control bytes are embedded raw. `docs/lib/teletype.mjs` is a byte-for-byte browser port of
+`tools/asr33_gen.py` and `tools/asr37_gen.py`: `PyRandom` reproduces Python's `random.Random`
+(MT19937, seeding, `getrandbits`, `_randbelow`, `random`, `choice`, `sample`, `uniform`) and the two
+generators make the same calls in the same order, so a seed yields the same file here as
+`python3 tools/asr33_gen.py --seed N`. `test/teletype.test.mjs` checks this against fixed-seed SHA-256
+references and, when Python is present, against a fresh run of the scripts. Both machines' streams carry
+a synchronous ASCII Bisync (BSC) block layer (SYN/SOH/STX/ETB/DLE/CAN, ACK0/ACK1, NAK, LRC) alongside
+the asynchronous tape, console and page traffic. A generated stream, and an opened file, feed the
+transform as raw bytes, bypassing the textarea (whose newline normalisation would corrupt a binary
+stream) and the control-token parser.
+
 ## Local use
 
 ```bash
 cd docs && python3 -m http.server 8000     # the static site, as GitHub Pages serves it
 node server.mjs                            # http://127.0.0.1:8814/ with the two local additions
-npm test                                   # 58 tests; Node 20 or later
+npm test                                   # 67 tests; Node 20 or later
 node bin/gigaspeak.mjs                     # command line: encode, url, decode, inspect, htm
 ```
 
@@ -95,6 +110,8 @@ enables both options only when it finds the server.
 - every Communicator transform equals `clojure.string/replace`, and, when present, the Communicator's
   own sample `.HTM` files are reproduced byte for byte;
 - the control-mnemonic rules (chainable, strict, greedy, `\` escape, line endings);
+- the teletype streams reproduce the Python scripts byte for byte (fixed-seed SHA-256, and a live run
+  when Python is present), keep the high bit clear, and carry the Bisync framing layer;
 - the local server's static serving, proxied literal addresses and path containment.
 
 ## The nth-member sites

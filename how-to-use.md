@@ -150,9 +150,15 @@ reported with the reason.
 The Communicator converts text through one of the 26 MDQNM transforms and saves the result as a file
 ending in `.HTM`.
 
-1. Type or paste the text in **Text**, or choose a `.txt` file with **Open file**. The counter shows
-   the number of bytes, up to 2,000,000. Files containing any non-ASCII byte are refused, with the
-   position of the first one.
+1. Give the Communicator its input in one of three ways:
+   - type or paste it in **Text**;
+   - choose a `.txt` file with **Open file**;
+   - pick a generated test stream from **Test input** (section 4.1).
+
+   The counter shows the number of bytes, up to 2,000,000. A file or stream containing any non-ASCII
+   byte is refused, with the position of the first one. An opened file or a generated stream is used
+   verbatim, byte for byte; while one is active the **Text** box is disabled, and **Clear** returns to
+   it.
 2. Choose the **Transform**. Each is named by its calc number and namespace. The default is calc32
    SPAN Transparent.
 3. **Tokens** and **Line breaks** work as in section 3.1.
@@ -174,6 +180,34 @@ hexadecimal value.
 
 The status line names the transform's namespace, its table size (128 or 256 entries) and the SHA-256
 of the MDQNM source file its table was taken from.
+
+### 4.1 Test input: 1971 teletype streams
+
+**Test input** builds a one-mebibyte (1,048,576-byte) capture of the kind of traffic a Teletype
+**Model 33 ASR** or **Model 37 ASR** carried around 1971, to exercise a byte-oriented parser, terminal
+emulator or serial handler. Every byte is `00`–`7F` (the high bit is left `0`, so an ordinary character
+keeps its leading zero), and the raw control bytes are embedded, not written out as text.
+
+- Choosing a model generates a fresh stream. **New seed** makes another; **Save .txt** downloads the
+  exact bytes as a `.txt` file (HxD shows the hex of each byte); **Clear** returns to the Text box.
+- The controls row reports the model, the byte count, the number of sessions and the **seed**. The
+  seed makes a stream reproducible: `python3 tools/asr33_gen.py --seed N` (in the repository) writes the
+  identical file, because the page is a byte-for-byte port of that script, checked in the test suite.
+- Each stream mixes the traffic types of its machine: Model 33 — tape messages (blank-tape leader,
+  a WRU/answerback exchange, `DC1`–`DC4` reader and punch control, `ZCZC`…`NNNN`, `RUB OUT`
+  corrections), WMO weather bulletins (`SOH`…`ETX`), DEC-style console sessions (`^C`, `^U`, `^O`,
+  `SUB`, the TECO `ALT MODE`), and off-line tape punching; Model 37 adds mixed case, `HT`/`VT`/`FF`
+  layout, `SO`/`SI` alternate-set (Greek) runs, `BS` underlining, half-line `ESC` motions for
+  subscripts, and Unix-style sessions with `nroff` output.
+- Both also include a synchronous **ASCII Bisync (BSC)** block layer — `SYN` idle, an `ENQ` bid,
+  `SOH` header and `STX` text closed by `ETB`/`ETX` with an LRC check byte, alternating `ACK0`/`ACK1`
+  acknowledgements, the occasional `NAK`-and-resend, `DLE`-stuffed transparent blocks, `CAN`, and
+  `EOT`/`DLE EOT` to end — so the source framing bytes are present, not left out.
+
+A generated stream feeds the Transform like any other input: pick a transform and press
+**Download .HTM**, or **Save hex .txt** for its hexadecimal. The streams are also available on the
+command line, `node bin/gigaspeak.mjs` aside, as the standalone `tools/asr33_gen.py` and
+`tools/asr37_gen.py`.
 
 ---
 

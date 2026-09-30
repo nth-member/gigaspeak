@@ -2,6 +2,7 @@ import { GRAMMARS, DEFAULT_GRAMMAR, grammar, labelForByte, hex2 } from "./lib/gr
 import { buildConstitution, defaultBudget, detectUrlLimit, readRenderUrl, FIREFOX_MAX_URL } from "./lib/speaker.mjs";
 import { buildMessageUrl } from "./lib/url-builder.mjs";
 import { toBytes, hexOf, prepare, apply, htmFilename, escapement, transformTitle, MAX_INPUT } from "./lib/communicator.mjs";
+import { generate, randomSeed, MODELS } from "./lib/teletype.mjs";
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("en-US");
@@ -177,6 +178,10 @@ $("dUrl").addEventListener("input", () => {
 
 // ---------- communicator ----------
 let transforms = [], prepared = new Map(), cBytes = [], cOut = null;
+// A raw byte source (a generated test stream, or an opened file). When set, it is
+// the Communicator's input verbatim, bypassing the textarea (whose newline
+// normalisation would corrupt a binary stream) and the control-token parser.
+let cRaw = null;
 const htmlLike = t => /htmlcolor/.test(t.namespace);
 fetch("data/transforms.json").then(r => r.json()).then(data => {
   transforms = data.transforms;
@@ -199,7 +204,7 @@ function communicate() {
   pending = requestAnimationFrame(() => {
     if (!transforms.length) return;
     try {
-      cBytes = toBytes($("cText").value, { lineEnding: $("cEol").value, mode: $("cMode").value });
+      cBytes = cRaw ?? toBytes($("cText").value, { lineEnding: $("cEol").value, mode: $("cMode").value });
       const t = transformNow();
       cOut = apply(t, cBytes);
       $("cCount").textContent = fmt(cBytes.length);
@@ -218,7 +223,43 @@ function communicate() {
     }
   });
 }
-["cText", "cTransform", "cMode", "cEol", "cName"].forEach(id => $(id).addEventListener("input", communicate));
+["cTransform", "cMode", "cEol", "cName"].forEach(id => $(id).addEventListener("input", communicate));
+$("cText").addEventListener("input", () => { if (cRaw) clearRaw(false); communicate(); });
+
+// ---------- test-input generators (Teletype Model 33 / 37) ----------
+function showRaw(info, generated) {
+  $("cText").disabled = true;
+  $("cRawRow").hidden = false;
+  $("cRawInfo").textContent = info;
+  $("cGenNew").hidden = !generated;
+}
+function clearRaw(run = true) {
+  cRaw = null;
+  $("cText").disabled = false;
+  $("cRawRow").hidden = true;
+  $("cGen").value = "";
+  if (run) communicate();
+}
+function genTest() {
+  const model = $("cGen").value;
+  if (!model) { clearRaw(); return; }
+  try {
+    const seed = randomSeed();
+    const { bytes, sessions } = generate(model, { seed });      // 1 MiB, 72 cols, high bit 0
+    cRaw = bytes;
+    $("cName").value = MODELS[model].file.replace(/\.txt$/, `_${seed}`);
+    showRaw(`${MODELS[model].title} · ${fmt(bytes.length)} bytes · ${fmt(sessions.length)} sessions · seed ${seed} · every byte 00–7F (leading zero kept)`, true);
+    communicate();
+  } catch (error) {
+    status("cStatus", error.message, "error");
+  }
+}
+$("cGen").addEventListener("change", genTest);
+$("cGenNew").addEventListener("click", () => { if ($("cGen").value) genTest(); });
+$("cRawClear").addEventListener("click", () => clearRaw());
+$("cRawSave").addEventListener("click", () => {
+  if (cRaw) save(`${$("cName").value.trim() || "test"}.txt`, new Blob([cRaw], { type: "text/plain" }));
+});
 
 function save(name, blob) {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: name });
@@ -240,8 +281,9 @@ $("cFile").addEventListener("change", async e => {
   const bad = bytes.findIndex(b => b > 0x7f);
   if (bad >= 0) { status("cStatus", `Byte ${fmt(bad + 1)} is 0x${hex2(bytes[bad])}: the file is not ASCII.`, "error"); return; }
   if (bytes.length > MAX_INPUT) { status("cStatus", "The file is longer than 2,000,000 bytes.", "error"); return; }
-  $("cText").value = new TextDecoder("ascii").decode(bytes);
+  cRaw = bytes;
   $("cName").value = file.name.replace(/\.\w+$/, "");
+  showRaw(`${file.name} · ${fmt(bytes.length)} bytes · opened verbatim`, false);
   communicate();
 });
 $("cEsc").innerHTML = `<table>${escapement().map((row, r) => `<tr>${row.map((cell, c) => `<td><b>${hex2(c * 16 + r)}</b>${cell.replace(/[&<>]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch])}</td>`).join("")}</tr>`).join("")}</table>`;

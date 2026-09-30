@@ -99,6 +99,17 @@
     <label class="field"><span>Line breaks</span><select id="cEol"><option>CRLF</option><option>LF</option><option>CR</option></select></label>
     <label class="field"><span>File name</span><input id="cName" value="communicator" autocomplete="off" spellcheck="false"></label>
     <label class="field"><span>Open file</span><input id="cFile" type="file" accept=".txt,text/plain"></label>
+    <label class="field"><span>Test input</span><select id="cGen">
+      <option value="">— none —</option>
+      <option value="asr33">Teletype 33 ASR · 1 MiB</option>
+      <option value="asr37">Teletype 37 ASR · 1 MiB</option>
+    </select></label>
+  </div>
+  <div class="row" id="cRawRow" hidden>
+    <span class="note" id="cRawInfo"></span>
+    <button type="button" class="ghost" id="cGenNew">New seed</button>
+    <button type="button" class="ghost" id="cRawSave">Save .txt</button>
+    <button type="button" class="ghost" id="cRawClear">Clear</button>
   </div>
   <div class="status" id="cStatus" aria-live="polite"></div>
   <div class="row"><button type="button" class="go small" id="cDownload">Download .HTM</button><button type="button" class="ghost" id="cHexSave">Save hex .txt</button></div>
