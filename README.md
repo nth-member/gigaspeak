@@ -11,7 +11,7 @@ Gigaspeak brings three earlier developments into one static application:
 | tab | what it does | formerly |
 |---|---|---|
 | **Speak** | runs the MDQNM namespace `mdqnm-timemachines-and-clocks`, draws a random four-octet speaker and port, chooses at random one of the longest parts of the output that fits a URL, encodes it in the chosen grammar and opens the transmission | the 24 Random Gigamonkey Speaker editions and their Gigaspeak launcher (Node servers on ports 8790–8814) |
-| **Build URL** | encodes a message written in ASCII, with control mnemonics (`NUL`, `CR`, `ESC`, `DEL`, …), as a render URL; decodes such URLs | the ASCII-HTML colour URL strategy |
+| **Build URL** | encodes a message written in ASCII, with control mnemonics (`NUL`, `CR`, `ESC`, `DEL`, …), or an opened `.txt` file byte for byte, as a render URL of any length; decodes such URLs | the ASCII-HTML colour URL strategy |
 | **Communicator** | ASCII text → continuous uppercase hex → one of 26 MDQNM `s/replace` transforms → bytes → a `.HTM` file | the MDQNM ASCII-HEX HTM Communicator (Clojure server on port 7797) and the single-file ASCII Communicator |
 | **Grammars** | the six grammars and all 128 byte colours | — |
 
@@ -36,7 +36,8 @@ The original editions were 6 grammars × 2 carriers × 2 authorities, each a sep
 now three choices on the Speak tab:
 
 - **Carrier.** *Query* (`render.html?g=…&html=…`) is sent to the server with the request; GitHub Pages
-  refuses request targets longer than about 8,190 characters, so a hosted query URL is limited to 8,000.
+  refuses request targets longer than about 8,190 characters, so the speaker limits a hosted query URL to
+  8,000 (the Build URL tab builds any length and leaves the limit to GitHub).
   *Fragment* (`render.html?g=…#html=…`) never leaves the browser and may use the longest address the
   browser accepts. Firefox accepts at most `network.standard-url.max-length` less 4 characters:
   1,048,572 by default. The page measures the viewer's own limit on loading, so a raised setting is
@@ -88,7 +89,7 @@ stream) and the control-token parser.
 ```bash
 cd docs && python3 -m http.server 8000     # the static site, as GitHub Pages serves it
 node server.mjs                            # http://127.0.0.1:8814/ with the two local additions
-npm test                                   # 67 tests; Node 20 or later
+npm test                                   # 71 tests; Node 20 or later
 node bin/gigaspeak.mjs                     # command line: encode, url, decode, inspect, htm
 ```
 
@@ -110,6 +111,7 @@ enables both options only when it finds the server.
 - every Communicator transform equals `clojure.string/replace`, and, when present, the Communicator's
   own sample `.HTM` files are reproduced byte for byte;
 - the control-mnemonic rules (chainable, strict, greedy, `\` escape, line endings);
+- the URL builder carries a file's bytes exactly in every grammar and carrier, with no length limit;
 - the teletype streams reproduce the Python scripts byte for byte (fixed-seed SHA-256, and a live run
   when Python is present), keep the high bit clear, and carry the Bisync framing layer;
 - the local server's static serving, proxied literal addresses and path containment.

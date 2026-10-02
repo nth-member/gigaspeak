@@ -176,10 +176,17 @@ export async function buildConstitution(output, {
 }
 
 // Reads a render URL back: the grammar, the carried document, and the speaker.
+// The query and fragment are split off by hand: a browser's URL constructor
+// refuses an address longer than its limit (Firefox: about 1 MiB), and a
+// transmission may be far longer than that. Only the short origin is parsed.
 export function readRenderUrl(href) {
-  const url = new URL(href);
-  const query = new URLSearchParams(url.search);
-  const fragment = new URLSearchParams(url.hash.slice(1));
+  if (typeof href !== "string") throw new TypeError("href must be a string");
+  const hashAt = href.indexOf("#");
+  const beforeHash = hashAt >= 0 ? href.slice(0, hashAt) : href;
+  const queryAt = beforeHash.indexOf("?");
+  const url = new URL(queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash);
+  const query = new URLSearchParams(queryAt >= 0 ? beforeHash.slice(queryAt + 1) : "");
+  const fragment = new URLSearchParams(hashAt >= 0 ? href.slice(hashAt + 1) : "");
   const inQuery = query.getAll("html");
   const inFragment = fragment.getAll("html");
   if (inQuery.length + inFragment.length !== 1) {

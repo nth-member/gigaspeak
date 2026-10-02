@@ -27,14 +27,32 @@ export function targetFor(target, port = "") {
   return url;
 }
 
-export function buildMessageUrl({ message, target, port = "", grammarId, carrier = "query", lineEnding = "CRLF", mode = "chainable" }) {
+// Each byte's token, percent-encoded once per grammar. Tokens begin and end on
+// ASCII characters, so joining encoded tokens equals encoding the joined document.
+const ENCODED = new Map();
+function encodedTokens(g) {
+  if (!ENCODED.has(g.id)) ENCODED.set(g.id, Array.from({ length: 128 }, (_, b) => encodeURIComponent(g.tokenForByte(b))));
+  return ENCODED.get(g.id);
+}
+
+// message: ASCII text with control mnemonics, parsed with lineEnding and mode.
+// bytes:   alternatively, the exact bytes (00-7F) to carry, e.g. a file's contents.
+// The address is never shortened, whatever its length.
+export function buildMessageUrl({ message, bytes: given, target, port = "", grammarId, carrier = "query", lineEnding = "CRLF", mode = "chainable" }) {
   const g = grammar(grammarId);
   const url = targetFor(target, port);
-  const bytes = parseAsciiTokens(message, { lineEnding, mode });
-  const html = encodeURIComponent(g.encodeBytes(bytes));
+  const bytes = given ?? parseAsciiTokens(message, { lineEnding, mode });
+  const enc = encodedTokens(g);
+  const parts = new Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) {
+    const b = bytes[i];
+    if (!Number.isInteger(b) || b < 0 || b > 0x7f) throw new RangeError(`Byte ${i + 1} is ${b}; only ASCII 00-7F can be carried`);
+    parts[i] = enc[b];
+  }
+  const html = parts.join("");
   const gParam = `g=${encodeURIComponent(g.id)}`;
   const href = carrier === "fragment"
     ? `${url.href}?${gParam}#html=${html}`
     : `${url.href}?${gParam}&html=${html}`;
-  return Object.freeze({ href, bytes, length: href.length });
+  return Object.freeze({ href, bytes, length: href.length, hostname: url.hostname });
 }

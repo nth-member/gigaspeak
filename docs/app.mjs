@@ -144,28 +144,79 @@ async function copy(text, button) {
 
 // ---------- build ----------
 $("bTarget").value = RENDER;
-["bGrammar", "bCarrier", "bMode", "bEol"].forEach(remember);
+["bGrammar", "bCarrier", "bMode", "bEol", "bFileAs"].forEach(remember);
+// A file carried byte for byte (File goes: into the URL). While set, it replaces
+// the message box, and Tokens and Line breaks do not apply.
+let bRaw = null, bFileLast = null, bHref = "";
+const URL_SHOWN = 200_000;   // characters of a very long address shown in the box
+let bPending = 0;
 function build() {
+  cancelAnimationFrame(bPending);
+  bPending = requestAnimationFrame(buildNow);
+}
+function buildNow() {
   try {
     const r = buildMessageUrl({
-      message: $("bMessage").value, target: $("bTarget").value, port: $("bPort").value,
+      message: $("bMessage").value, bytes: bRaw ?? undefined, target: $("bTarget").value, port: $("bPort").value,
       grammarId: $("bGrammar").value, carrier: $("bCarrier").value, mode: $("bMode").value, lineEnding: $("bEol").value
     });
-    $("bUrl").value = r.href; $("bLen").textContent = fmt(r.length); $("bOpen").href = r.href;
+    bHref = r.href;
+    $("bUrl").value = r.length > URL_SHOWN
+      ? `${r.href.slice(0, URL_SHOWN)}\n… ${fmt(r.length - URL_SHOWN)} more characters (Copy URL and Save URL .txt take the whole address)`
+      : r.href;
+    $("bLen").textContent = fmt(r.length); $("bOpen").href = r.href; $("bCount").textContent = fmt(r.bytes.length);
     $("bPreview").innerHTML = grammar($("bGrammar").value).encodeBytes(r.bytes.slice(0, 4000));
     $("bPreview").dataset.form = grammar($("bGrammar").value).form;
-    const hosted = !/^(localhost|127\.|\[::1\])/.test(new URL(r.href).hostname);
-    const pagesLimit = hosted && $("bCarrier").value === "query" && r.length > 8000;
-    const problem = tooLong(r.length) || (pagesLimit ? "Longer than GitHub Pages accepts in a query; use the fragment carrier." : "");
-    status("bStatus", `${fmt(r.bytes.length)} bytes${problem ? ` · ${problem}` : ""}`, problem ? "error" : "");
+    // Lengths are reported, never enforced: the address is built in full.
+    const notes = [];
+    const hosted = !/^(localhost|127\.|\[::1\])/.test(r.hostname);   // not new URL(href): too long for it
+    if (hosted && $("bCarrier").value === "query" && r.length > 8000) notes.push("GitHub Pages answers query addresses longer than about 8,190 characters with 414 URI Too Long; the address is not shortened");
+    const limit = browserLimit ?? FIREFOX_MAX_URL;
+    if (r.length > limit) notes.push(`this browser opens addresses of up to ${fmt(limit)} characters`);
+    status("bStatus", `${fmt(r.bytes.length)} bytes${notes.length ? ` · ${notes.join(" · ")}` : ""}`);
   } catch (error) {
-    $("bUrl").value = ""; $("bLen").textContent = "0"; $("bPreview").textContent = "";
+    bHref = ""; $("bUrl").value = ""; $("bLen").textContent = "0"; $("bPreview").textContent = "";
     status("bStatus", error.message, "error");
   }
 }
 ["bMessage", "bTarget", "bPort", "bGrammar", "bCarrier", "bMode", "bEol"].forEach(id => $(id).addEventListener("input", build));
 build();
-$("bCopy").addEventListener("click", () => copy($("bUrl").value, $("bCopy")));
+$("bCopy").addEventListener("click", () => copy(bHref, $("bCopy")));
+$("bSave").addEventListener("click", () => {
+  if (bHref) save(`${(bFileLast?.name ?? "gigaspeak").replace(/\.\w+$/, "")}_url.txt`, new Blob([bHref], { type: "text/plain" }));
+});
+
+function bSetRaw(on, info = "") {
+  $("bMessage").disabled = on; $("bMode").disabled = on; $("bEol").disabled = on;
+  $("bRawRow").hidden = !on; $("bRawInfo").textContent = info;
+}
+function bApplyFile() {
+  if (!bFileLast) return;
+  const { bytes, name } = bFileLast;
+  if ($("bFileAs").value === "raw") {
+    bRaw = bytes;
+    bSetRaw(true, `${name} · ${fmt(bytes.length)} bytes carried byte for byte (Tokens and Line breaks do not apply)`);
+  } else {
+    bRaw = null;
+    bSetRaw(false);
+    $("bMessage").value = new TextDecoder("ascii").decode(bytes);
+    status("bStatus", `${name} placed in the message box: control mnemonics and Line breaks now apply to it`);
+  }
+  build();
+}
+$("bFile").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";                                   // the same file can be chosen again
+  if (!file) return;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const bad = bytes.findIndex(b => b > 0x7f);
+  if (bad >= 0) { status("bStatus", `Byte ${fmt(bad + 1)} of ${file.name} is 0x${hex2(bytes[bad])}: only ASCII 00-7F can be carried.`, "error"); return; }
+  bFileLast = { bytes, name: file.name };
+  bApplyFile();
+});
+$("bFileAs").addEventListener("change", bApplyFile);
+$("bRawClear").addEventListener("click", () => { bRaw = null; bFileLast = null; bSetRaw(false); build(); });
+
 $("dUrl").addEventListener("input", () => {
   const v = $("dUrl").value.trim();
   if (!v) { $("dOut").textContent = ""; return; }

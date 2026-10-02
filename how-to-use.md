@@ -101,11 +101,15 @@ not a fault in the display.
 
 ## 3. Build URL: a transmission from your own message
 
-1. Type the message in **Message**. It must be ASCII (no accented letters, curly quotes or other
-   symbols outside ASCII; the status line names any that are found).
+1. Type the message in **Message**, or open a `.txt` file with **Open file** (section 3.4). It must be
+   ASCII (no accented letters, curly quotes or other symbols outside ASCII; the status line names any
+   that are found).
 2. Choose **Grammar** and **Carrier**.
 3. The address appears in **URL** as you type, with its length and a coloured **preview**.
-4. **Open ↗** opens it; **Copy URL** copies it.
+4. **Open ↗** opens it; **Copy URL** copies it; **Save URL .txt** saves the whole address as a text file.
+
+The Build URL tab never shortens an address, whatever its length. Limits that apply further on
+(GitHub's, the browser's) are reported in the status line for information only (section 7).
 
 ### 3.1 Control characters
 
@@ -134,14 +138,36 @@ DLE DC1 DC2 DC3 DC4 NAK SYN ETB  CAN EM SUB ESC FS GS RS US   DEL
 `render.html` by default. Another address may be entered, for example a local server; **Port** adds a
 port number to it. The address must not contain a query (`?`) or fragment (`#`).
 
-If a query-string address for the published site grows beyond 8,000 characters, the status line turns
-red; switch the carrier to Fragment (section 7).
+If a query-string address for the published site is longer than about 8,190 characters, the status line
+says that GitHub Pages will answer it with **414 URI Too Long**. GitHub does not shorten such an address;
+it refuses the whole request, and the page never loads. The address is still built in full, and can be
+copied, saved or used with another renderer (section 7).
 
 ### 3.3 Decoding an address
 
-Open **Decode a URL** and paste any Gigaspeak transmission address. It shows the grammar, the carrier,
-the number of bytes, their hexadecimal values and the text. Addresses that fail the grammar check are
-reported with the reason.
+Open **Decode a URL** and paste any Gigaspeak transmission address, of any length. It shows the grammar,
+the carrier, the number of bytes, their hexadecimal values and the text. Addresses that fail the grammar
+check are reported with the reason.
+
+### 3.4 Opening a file
+
+**Open file** reads a `.txt` file. **File goes** decides what happens to it:
+
+- **into the URL, byte for byte** (default): every byte of the file is carried exactly, as
+  ASCII-HTML-COLOR tokens in the query string or fragment. Control bytes, bare `CR`s and `NUL`s are kept
+  as they are; **Tokens** and **Line breaks** do not apply, and the Message box is disabled while the file
+  is in use. **Clear** returns to the Message box. A 1 MiB file gives an address of about 80–98 million
+  characters, depending on the grammar.
+- **into the message box**: the file's text is placed in **Message**, where it can be edited, and
+  control mnemonics and **Line breaks** then apply to it. This is not byte-exact: a browser text box
+  normalises line breaks, so a file containing `CR` bytes changes. Use the first choice to carry a file
+  exactly.
+
+A file containing any byte above `7F` is refused, with the position of the first one. Changing
+**File goes** after opening a file applies the new choice to the same file. For a very long address the
+**URL** box shows its first 200,000 characters; **Copy URL** and **Save URL .txt** take the whole
+address. Copying tens of millions of characters to the clipboard can fail in some browsers; **Save URL
+.txt** does not depend on the clipboard.
 
 ---
 
@@ -279,7 +305,7 @@ and it differs between the two carriers.
 | limit | applies to | value | consequence |
 |---|---|---|---|
 | GitHub Pages request limit | **query string** on the published site | a request target (path and query) of about 8,190 characters | a longer address is answered with GitHub's **414 URI Too Long** page and never reaches Gigaspeak |
-| Gigaspeak's hosted query budget | **query string** on the published site | 8,000 characters of address | keeps every generated address below GitHub's limit: 85 to 105 bytes of text |
+| Gigaspeak's hosted query budget | **query string** on the published site, **Speak tab only** | 8,000 characters of address | keeps every address the speaker generates below GitHub's limit: 85 to 105 bytes of text. The Build URL tab has no budget: it builds the full address and only reports the limits |
 | Firefox's maximum address length | **both carriers**, everywhere | the setting `network.standard-url.max-length` less 4: **1,048,572** characters by default | a longer address is refused outright (section 7.2) |
 | Gigaspeak's fragment and local budget | **fragment**, and **query string** on a local server | the limit measured in the viewer's browser: 1,048,572 in a default Firefox | about 11,000 bytes of text in SPAN Transparent |
 

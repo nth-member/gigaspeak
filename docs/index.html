@@ -70,7 +70,18 @@
 <!-- BUILD -->
 <section class="panel" data-panel="build" hidden>
   <p class="lede">Write a message in ASCII. Uppercase control mnemonics such as <code>NUL</code>, <code>CR</code>, <code>ESC</code> and <code>DEL</code> become their bytes; <code>\NUL</code> keeps the letters.</p>
-  <label class="field"><span>Message</span><textarea id="bMessage" rows="6" spellcheck="false">STX Hello from Gigaspeak. ETX</textarea></label>
+  <label class="field"><span>Message · <span id="bCount">0</span> bytes</span><textarea id="bMessage" rows="6" spellcheck="false">STX Hello from Gigaspeak. ETX</textarea></label>
+  <div class="grid3">
+    <label class="field"><span>Open file</span><input id="bFile" type="file" accept=".txt,text/plain"></label>
+    <label class="field"><span>File goes</span><select id="bFileAs">
+      <option value="raw">into the URL, byte for byte</option>
+      <option value="text">into the message box</option>
+    </select></label>
+  </div>
+  <div class="row" id="bRawRow" hidden>
+    <span class="note" id="bRawInfo"></span>
+    <button type="button" class="ghost" id="bRawClear">Clear</button>
+  </div>
   <div class="grid3">
     <label class="field"><span>Grammar</span><select id="bGrammar"></select></label>
     <label class="field"><span>Carrier</span><select id="bCarrier"><option value="query">Query (?html=)</option><option value="fragment">Fragment (#html=)</option></select></label>
@@ -82,7 +93,7 @@
   <div class="status" id="bStatus" aria-live="polite"></div>
   <div class="preview" id="bPreview" aria-label="Preview"></div>
   <label class="field"><span>URL · <span id="bLen">0</span> characters</span><textarea id="bUrl" rows="4" readonly spellcheck="false"></textarea></label>
-  <div class="row"><a id="bOpen" target="_blank" rel="noopener">Open ↗</a><button type="button" id="bCopy" class="ghost">Copy URL</button></div>
+  <div class="row"><a id="bOpen" target="_blank" rel="noopener">Open ↗</a><button type="button" id="bCopy" class="ghost">Copy URL</button><button type="button" id="bSave" class="ghost">Save URL .txt</button></div>
   <details class="adv"><summary>Decode a URL</summary>
     <label class="field"><span>Paste a Gigaspeak URL</span><textarea id="dUrl" rows="3" spellcheck="false"></textarea></label>
     <pre class="mono out" id="dOut"></pre>
