@@ -53,9 +53,11 @@ sink did, inside a sandboxed frame with no scripts and an opaque origin.
 ## The engine
 
 The Speak tab runs the MDQNM engine in the page with the Alien Corridor Support System's SCI port:
-`docs/vendor/scittle-0.8.33.js` and `docs/vendor/acss-engine.js` are copied from
-[nth-member/alien-corridor](https://github.com/nth-member/alien-corridor), and the engine's `.clj`
-sources are read from that site, which publishes them byte for byte. `mdqnm-timemachines-and-clocks`
+`docs/vendor/scittle-0.8.33.js`, `docs/vendor/acss-engine.js` and `docs/vendor/nsukka-yg-clock.js` are
+copied from [nth-member/alien-corridor](https://github.com/nth-member/alien-corridor), and the engine's
+`.clj` sources are read from that site, which publishes them byte for byte, with each edition's from-long
+origin (`data/clock-<tree>.json`): the engine's dates print on the Nsukka/Yg clock, in Nsukka time, as on
+the Alien Corridor. `mdqnm-timemachines-and-clocks`
 requires the whole primary tree (90 namespaces); a run takes about ten seconds and prints about
 3.77 million characters. The declared differences from the JVM are those listed on the Alien Corridor
 site's fidelity page. A **Text I supply** source needs no engine.

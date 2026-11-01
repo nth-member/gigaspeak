@@ -5,8 +5,12 @@
 
      java.util.Date          Date resolves to the JS Date; (import '[java.util Date]) is then a no-op;
                              (. (new Date) getTime) is then the same epoch-ms reading
-     clj-time.coerce         from-long -> a DateTime that prints as Joda's does
-     clj-time.local          local-now -> a DateTime in the machine's zone
+     clj-time.coerce         from-long -> a DateTime that prints as Joda's does. The engine writes
+                             every date as (from-long (long (+ ORIGIN (* 86400000 Z)))); the
+                             one printed is the instant at which the Nsukka/Yg clock reads that
+                             Z (nsukka-yg-clock.js), in Nsukka time, +01:00
+     clj-time.local          local-now -> a DateTime in Nsukka's zone (UTC+01:00), the zone of
+                             the author's machine, whatever zone the visitor's device is in
      clj-time.core           present, as required; the engine calls nothing in it
      agent / send            an agent is a reference whose send applies at once
                              (the browser has one thread; the JVM applies it on a pool);
@@ -21,7 +25,9 @@
 
    Known and declared differences: numbers print the JavaScript way (12480 for
    12480.0; no exact ratios, so (/ 1000 7) is 142.857...); integers are exact to
-   2^53 rather than 2^63; clocks read the visitor's device clock.
+   2^53 rather than 2^63; clocks read the visitor's device clock; and dates are
+   read from Nsukka on the Yg calendar, recalibrated every Yg year, where the JVM
+   printed the uniform epoch of the from-long origin in UTC (fidelity.html).
 */
 (function (root) {
   "use strict";
@@ -65,31 +71,40 @@
 (defn await [& _] nil)
 ;; A Joda DateTime as the engine's output sees it: (str dt) is its ISO text, and
 ;; pr shows #object[org.joda.time.DateTime 0x........ "ISO"].
-(deftype DateTime [ms utc h]
-  Object (toString [_] (js/ACSS.iso ms utc))
+;; mode: "tnldy" (from-long), "utc" (clj-time.core/now), "local" (local-now).
+(deftype DateTime [ms mode h]
+  Object (toString [_] (js/ACSS.iso ms mode))
   IPrintWithWriter
-  (-pr-writer [_ w _] (-write w (str "#object[org.joda.time.DateTime 0x" h " " (pr-str (js/ACSS.iso ms utc)) "]"))))
-(defn acss-date-time [ms utc] (->DateTime (js/Math.trunc ms) utc (.toString (rand-int 2147483647) 16)))
+  (-pr-writer [_ w _] (-write w (str "#object[org.joda.time.DateTime 0x" h " " (pr-str (js/ACSS.iso ms mode)) "]"))))
+(defn acss-date-time [ms mode] (->DateTime (js/Math.trunc ms) mode (.toString (rand-int 2147483647) 16)))
 (ns clj-time.core)
-(defn now [] (clojure.core/acss-date-time (.now js/Date) true))
+(defn now [] (clojure.core/acss-date-time (.now js/Date) "utc"))
 (ns clj-time.coerce)
-(defn from-long [ms] (clojure.core/acss-date-time ms true))
+(defn from-long [ms] (clojure.core/acss-date-time ms "tnldy"))
 (defn to-long [dt] (.-ms dt))
 (ns clj-time.local)
-(defn local-now [] (clojure.core/acss-date-time (.now js/Date) false))
+(defn local-now [] (clojure.core/acss-date-time (.now js/Date) "local"))
 (in-ns 'user)
 `;
 
   // Joda's ISO form: the year has at least four digits and a sign only when
-  // negative (-0446, 40922) -- JavaScript's own is -000446 and +040922. A UTC
-  // DateTime ends in Z; a local one carries the machine's offset (+01:00).
-  function iso(ms, utc) {
+  // negative (-0446, 40922) -- JavaScript's own is -000446 and +040922.
+  //   "utc"    clj-time.core/now: UTC, ending in Z.
+  //   "local"  local-now: Nsukka time, ending in +01:00.
+  //   "tnldy"  from-long: the engine wrote Z on its edition's from-long origin, ms = ORIGIN + 86 400 000·Z
+  //            (ACSS.fromLongOrigin, read from data/clock-<tree>.json). The instant printed is the one at
+  //            which the Nsukka/Yg clock reads that Z, in Nsukka time; there is none in the 5/23 day passed
+  //            over at a recalibration, and two in the 18/23 day met twice. Without the origin, UTC as Joda.
+  function iso(ms, mode) {
     const joda = t => { const y = new Date(t).getUTCFullYear();
       return new Date(t).toISOString().replace(/^[+-]?\d+/, (y < 0 ? "-" : "") + String(Math.abs(y)).padStart(4, "0")); };
-    if (utc) return joda(ms);
-    const off = -new Date(ms).getTimezoneOffset(), p = n => String(Math.abs(n)).padStart(2, "0");
-    return joda(ms + off * 60000).slice(0, -1) +
-           (off === 0 ? "Z" : (off > 0 ? "+" : "-") + p(Math.trunc(off / 60)) + ":" + p(off % 60));
+    if (mode === "local") return joda(ms + 3600000).slice(0, -1) + "+01:00";
+    const Y = root.NsukkaYg, origin = root.ACSS && root.ACSS.fromLongOrigin;
+    if (mode !== "tnldy" || !Y || origin == null) return joda(ms);
+    const [n0, d0] = Y.frac(origin);
+    const at = Y.instantsOfFrac(BigInt(Math.trunc(ms)) * d0 - n0, 86400000n * d0);
+    if (at.length === 2) return Y.isoNsukka(at[0]) + " and " + Y.isoNsukka(at[1]);
+    return at.length ? Y.isoNsukka(at[0]) : "no instant: this Z is passed over at a Yg recalibration";
   }
 
   // Split source into top-level forms, each with its starting line. Strings,

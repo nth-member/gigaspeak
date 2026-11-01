@@ -2,7 +2,9 @@
 // in-browser engine: SCI (scittle 0.8.33) evaluates the engine's unmodified .clj
 // sources, and acss-engine.js supplies what the JVM supplied. Both scripts are
 // vendored in vendor/; the sources are read from the Alien Corridor site, which
-// publishes them byte for byte.
+// publishes them byte for byte. Dates print on the Nsukka/Yg clock
+// (vendor/nsukka-yg-clock.js), from the edition's from-long origin that the site
+// publishes in data/clock-<tree>.json, as on the Alien Corridor itself.
 
 export const TARGET_NAMESPACE = "org.threeppnoah.mdqnm.jomosuperprocess1.mdqnm-timemachines-and-clocks";
 export const ENGINE_SITE = "https://nth-member.github.io/alien-corridor/";
@@ -32,10 +34,13 @@ async function session(site, tree) {
   if (!sessions.has(key)) {
     sessions.set(key, (async () => {
       scriptsReady ??= loadScript(new URL("../vendor/scittle-0.8.33.js", import.meta.url).href)
+        .then(() => loadScript(new URL("../vendor/nsukka-yg-clock.js", import.meta.url).href))
         .then(() => loadScript(new URL("../vendor/acss-engine.js", import.meta.url).href));
       await scriptsReady;
       const list = JSON.parse(await text(`${site}data/namespaces-${tree}.json`));
-      return { site, tree, paths: new Map(list.map(n => [n.ns, n.path])), sources: new Map(), engine: null };
+      const clock = JSON.parse(await text(`${site}data/clock-${tree}.json`));
+      return { site, tree, paths: new Map(list.map(n => [n.ns, n.path])), sources: new Map(), engine: null,
+               origin: clock.from_long_origin_ms };
     })().catch(error => { sessions.delete(key); throw error; }));
   }
   return sessions.get(key);
@@ -67,6 +72,7 @@ export async function runNamespace(ns = TARGET_NAMESPACE, { site = ENGINE_SITE, 
   if (!s.paths.has(ns)) throw new Error(`${ns} is not in the ${tree} tree`);
   await closure(s, ns, onStatus);
   s.engine ??= window.ACSS.Engine({ isEngineNs: n => s.paths.has(n), source: n => s.sources.get(n) ?? null });
+  window.ACSS.fromLongOrigin = s.origin;
   onStatus?.(`Evaluating ${ns} (${s.sources.size} namespaces)…`);
   await new Promise(r => setTimeout(r, 30));
   const result = s.engine.load(ns);
